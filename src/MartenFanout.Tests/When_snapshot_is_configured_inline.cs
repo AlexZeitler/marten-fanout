@@ -1,7 +1,7 @@
 using Marten;
 using Marten.Events.Aggregation;
 using Marten.Events.Projections;
-using static MartenFanout.Tests.TestDatabase;
+using MartenFanout.Tests.TestSetup;
 
 namespace MartenFanout.Tests;
 
@@ -26,18 +26,17 @@ public class When_projection_is_configured_inline
   public class When_event_is_persisted
   {
     private Guid _streamId;
-    private DocumentStore? _store;
+    private IDocumentStore? _store;
+    private TestEventStore _testEventStore;
 
     [SetUp]
     public async Task InitializeAsync()
     {
-      _store = DocumentStore.For(
-        _ =>
-        {
-          _.Connection(GetTestDbConnectionString());
-          _.Projections.Add<SomethingProjection>(ProjectionLifecycle.Inline);
-        }
+      _testEventStore = await TestEventStore.InitializeAsync(
+        options => { options.Projections.Add<SomethingProjection>(ProjectionLifecycle.Inline); }
       );
+
+      _store = _testEventStore.Store;
 
       var on = DateTimeOffset.Now;
       var happened = new SomethingHappened(on);
@@ -56,8 +55,7 @@ public class When_projection_is_configured_inline
       something.ShouldNotBeNull();
     }
 
-
     [TearDown]
-    public async Task DisposeAsync() => await _store.DisposeAsync();
+    public async Task DisposeAsync() => await _testEventStore.DisposeAsync();
   }
 }
