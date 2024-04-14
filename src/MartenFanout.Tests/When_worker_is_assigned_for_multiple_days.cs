@@ -1,4 +1,5 @@
 using Marten;
+using Marten.Events.Aggregation;
 using Marten.Events.Projections;
 using MartenFanout.Tests.TestSetup;
 
@@ -11,6 +12,11 @@ public record WorkCompleted(Guid AssignmentId, DateOnly Date, string Description
 public record WorkByDay(string Id, Guid AssignmentId, Guid WorkerId, DateOnly Date, string[] WorkCompleted);
 
 public record WorkerAssignedForDay(Guid AssignmentId, Guid WorkerId, DateOnly Date);
+
+public record WorkerAssignment(Guid AssignmentId, Guid WorkerId, DateOnly Start, DateOnly End)
+{
+  public Guid Id { get; set; }
+}
 
 public class WorkByDayProjection : MultiStreamProjection<WorkByDay, string>
 {
@@ -58,22 +64,40 @@ public class WorkByDayProjection : MultiStreamProjection<WorkByDay, string>
     };
 }
 
+public class WorkerAssignmentProjection : SingleStreamProjection<WorkerAssignment>
+{
+  public static WorkerAssignment Create(
+    WorkerAssigned evt
+  ) =>
+    new(
+      evt.AssignmentId,
+      evt.WorkerId,
+      evt.Start,
+      evt.End
+    );
+}
+
 [TestFixture]
 public class When_worker_is_assigned_for_multiple_days
 {
   private IDocumentStore _store;
   private TestEventStore _testEventStore;
+  private Guid _workerId;
 
   [SetUp]
   public async Task InitializeAsync()
   {
     _testEventStore = await TestEventStore.InitializeAsync(
-      options => { options.Projections.Add<WorkByDayProjection>(ProjectionLifecycle.Inline); }
+      options =>
+      {
+        options.Projections.Add<WorkByDayProjection>(ProjectionLifecycle.Inline);
+        options.Projections.Add<WorkerAssignmentProjection>(ProjectionLifecycle.Inline);
+      }
     );
     _store = _testEventStore.Store;
 
     var assignmentId = Guid.NewGuid();
-    var workerId = Guid.NewGuid();
+    _workerId = Guid.NewGuid();
     var today = DateOnly.FromDateTime(DateTime.Today);
     var tomorrow = today.AddDays(1);
     var oneWeekFromToday = today.AddDays(7);
@@ -84,7 +108,7 @@ public class When_worker_is_assigned_for_multiple_days
       assignmentId,
       new WorkerAssigned(
         assignmentId,
-        workerId,
+        _workerId,
         today,
         oneWeekFromToday
       )
@@ -124,6 +148,17 @@ public class When_worker_is_assigned_for_multiple_days
     var workByDay = session.Query<WorkByDay>()
       .ToList();
     workByDay.Count.ShouldBe(8);
+  }
+
+  [Test]
+  public void should_create_assignment_projection()
+  {
+    using var session = _store.QuerySession();
+    var workerAssignment = session.Query<WorkerAssignment>()
+      .FirstOrDefault(a => a.WorkerId == _workerId);
+    workerAssignment.ShouldNotBeNull();
+    workerAssignment.Start.ShouldBe(DateOnly.FromDateTime(DateTime.Today));
+    workerAssignment.End.ShouldBe(DateOnly.FromDateTime(DateTime.Today.AddDays(7)));
   }
 
   [TearDown]
