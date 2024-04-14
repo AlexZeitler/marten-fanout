@@ -34,7 +34,7 @@ jobs:
           cd test-database
           docker compose up -d
           cd ..
-          dotnet test -l "trx;LogFileName=test-results.trx" ./src/MartenDotNetTestTemplate.Tests/
+          dotnet test -l "trx;LogFileName=test-results.trx" ./src/MartenFanout.Tests/
       - name: Test Report
         uses: dorny/test-reporter@v1
         if: always()
