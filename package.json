@@ -1,0 +1,17 @@
+{
+  "name": "dotnet-marten-test-template",
+  "version": "0.0.1",
+  "repository": "git@github.com:PDMLab/dotnet-marten-test-template.git",
+  "author": "Alexander Zeitler <alexander.zeitler@pdmlab.com>",
+  "license": "MIT",
+  "scripts": {
+    "prepare": "husky install",
+    "start": "tmuxinator",
+    "stop": "docker stop $(docker ps -aq); docker rm $(docker ps -aq);tmux kill-session"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^18.4.3",
+    "@commitlint/config-conventional": "^18.4.3",
+    "husky": "^8.0.3"
+  }
+}

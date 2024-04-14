@@ -1,0 +1,15 @@
+name: marten-test-template
+root: ./
+
+on_project_start: echo starting stack...
+
+windows:
+  - tests:
+      layout: even-vertical
+      panes:
+        - marten-test:
+            - printf '\033]2;%s\033\\' 'marten-test'
+            - cd test-database
+            - docker compose up
+        - workspace:
+            - printf '\033]2;%s\033\\' 'workspace'

@@ -1,0 +1,45 @@
+name: .NET Core Build with Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    # use ubuntu for more build minutes
+    runs-on: ubuntu-latest
+    # use release mode for all steps
+    env:
+      config: 'Debug'
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup .NET Core
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '8.0.x'
+        
+      - name: Install dependencies
+        run: |
+          cd src 
+          dotnet restore
+      - name: Build
+        run: |
+          cd src 
+          dotnet build --configuration $config --no-restore
+      - name: Test
+        run: |
+          cd test-database
+          docker compose up -d
+          cd ..
+          dotnet test -l "trx;LogFileName=test-results.trx" ./src/MartenDotNetTestTemplate.Tests/
+      - name: Test Report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: .NET Tests
+          path: "**/test-results.trx"
+          reporter: dotnet-trx
+          fail-on-error: true
