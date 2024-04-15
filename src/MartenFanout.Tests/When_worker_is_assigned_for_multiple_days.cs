@@ -161,6 +161,21 @@ public class When_worker_is_assigned_for_multiple_days
     workerAssignment.End.ShouldBe(DateOnly.FromDateTime(DateTime.Today.AddDays(7)));
   }
 
+  [Test]
+  public async Task should_not_duplicate_projections_on_rebuild()
+  {
+    var daemon = await _store.BuildProjectionDaemonAsync();
+    await daemon.StartAllAsync();
+    await daemon.RebuildProjectionAsync<WorkByDayProjection>(CancellationToken.None);
+    await daemon.RebuildProjectionAsync<WorkerAssignmentProjection>(CancellationToken.None);
+    await daemon.StopAllAsync();
+
+    using var session = _store.QuerySession();
+    var workByDay = session.Query<WorkByDay>()
+      .ToList();
+    workByDay.Count.ShouldBe(8);
+  }
+
   [TearDown]
   public async Task DisposeAsync() => await _testEventStore.DisposeAsync();
 }
